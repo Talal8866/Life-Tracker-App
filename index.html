@@ -4910,11 +4910,21 @@
       min-width: 38px
     }
 
+
+    .pgs { display: flex; flex-direction: column }
+    #pgacc { margin-top: auto; padding-top: 14px }
+    .pga { display: flex; align-items: center; gap: 10px; padding: 12px 6px 0; border-top: 1px solid var(--line) }
+    .pga-av { flex: none; width: 38px; height: 38px; border-radius: 13px; display: grid; place-items: center; background: var(--basalt); color: #E6BE62; font: 500 17px "Reem Kufi", system-ui, sans-serif }
+    .pga-n { min-width: 0; flex: 1; display: flex; flex-direction: column; line-height: 1.25 }
+    .pga-n b { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+    .pga-n small { font-size: 11.5px; color: var(--mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+    .pga-b { flex: none; min-height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line); background: none; color: var(--ink); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer }
+    .pga-b.go { background: var(--basalt); border-color: var(--basalt); color: #fff }
     /* sign in and create account pages */
-    .agx{position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;padding:max(24px,env(safe-area-inset-top,0px)) 22px max(24px,env(safe-area-inset-bottom,0px));border:0;overflow-y:auto;overscroll-behavior:contain;color:#fff;background:linear-gradient(150deg,var(--basalt) 0%,var(--acct) 165%);animation:agxin .4s ease both}
+    .agx{scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.25) transparent;position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;padding:max(24px,env(safe-area-inset-top,0px)) 22px max(24px,env(safe-area-inset-bottom,0px));border:0;overflow-y:auto;overscroll-behavior:contain;color:#fff;background:linear-gradient(150deg,var(--basalt) 0%,var(--acct) 165%);animation:agxin .4s ease both}
     .agx:not([open]){display:none}
     .agx::backdrop{background:var(--basalt);overflow:hidden;overscroll-behavior:contain}
-    .agx::before{content:"";position:fixed;left:-90px;bottom:-110px;width:380px;height:380px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='none' stroke='white' stroke-width='1.3'%3E%3Crect x='16' y='16' width='68' height='68'/%3E%3Crect x='16' y='16' width='68' height='68' transform='rotate(45 50 50)'/%3E%3Ccircle cx='50' cy='50' r='19'/%3E%3C/svg%3E") center/contain no-repeat;opacity:.06;pointer-events:none}
+    .agx::before{content:"";position:fixed;inset:0;background-position:-90px calc(100% + 110px);background-size:380px 380px;background-repeat:no-repeat;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='none' stroke='white' stroke-width='1.3'%3E%3Crect x='16' y='16' width='68' height='68'/%3E%3Crect x='16' y='16' width='68' height='68' transform='rotate(45 50 50)'/%3E%3Ccircle cx='50' cy='50' r='19'/%3E%3C/svg%3E");opacity:.06;pointer-events:none}
     .agx::after{content:"";position:fixed;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,transparent,#E6BE62,transparent);opacity:.85;pointer-events:none}
     .agx.out{opacity:0;transition:opacity .22s}
     .agx-in{position:relative;z-index:1;width:min(100%,380px);min-height:100%;margin:0 auto;display:flex;flex-direction:column;justify-content:center}
@@ -5002,6 +5012,7 @@
               <path
                 d="M12 2.5v2.7M12 18.8v2.7M2.5 12h2.7M18.8 12h2.7M5.3 5.3l1.9 1.9M16.8 16.8l1.9 1.9M5.3 18.7l1.9-1.9M16.8 7.2l1.9-1.9" />
             </svg></span><span>Settings</span></button></div>
+      <div id="pgacc"></div>
     </div>
   </div>
   <script>
@@ -5286,7 +5297,7 @@
     function asave() { try { if (AUTH) localStorage.setItem(AKEY, JSON.stringify(AUTH)); else localStorage.removeItem(AKEY) } catch (e) { } }
     function fetchJ(url, opt) { return fetch(url, opt).then(function (r) { return r.text().then(function (t) { var j = {}; try { j = t ? JSON.parse(t) : {} } catch (e) { } if (!r.ok) { var c = (j.error && (j.error.message || j.error.status)) || ("HTTP " + r.status); throw { code: String(c), http: r.status } } return j }) }) }
     function idt(path, body) { return fetchJ("https://identitytoolkit.googleapis.com/v1/" + path + "?key=" + FBK, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }) }
-    function setAuth(j, em) { AUTH = { uid: j.localId, em: em, rt: j.refreshToken }; TOK = j.idToken; TEXP = Date.now() + (+j.expiresIn || 3600) * 1000; asave() }
+    function setAuth(j, em, nm) { AUTH = { uid: j.localId, em: em, rt: j.refreshToken, dn: String(j.displayName || nm || "").slice(0, 60) }; TOK = j.idToken; TEXP = Date.now() + (+j.expiresIn || 3600) * 1000; asave(); acNav() }
     function tok() {
       if (TOK && Date.now() < TEXP - 60000) return Promise.resolve(TOK); if (!AUTH) return Promise.reject({ code: "NO_AUTH" });
       return fetchJ("https://securetoken.googleapis.com/v1/token?key=" + FBK, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: "grant_type=refresh_token&refresh_token=" + encodeURIComponent(AUTH.rt) }).then(function (j) { TOK = j.id_token; TEXP = Date.now() + (+j.expires_in || 3600) * 1000; if (j.refresh_token && j.refresh_token !== AUTH.rt) { AUTH.rt = j.refresh_token; asave() } return TOK }, function (e) { if (/TOKEN_EXPIRED|INVALID_REFRESH_TOKEN|USER_NOT_FOUND|USER_DISABLED|INVALID_GRANT/.test(e && e.code || "")) signOutLocal("Signed out. Please sign in again."); throw e })
@@ -5314,7 +5325,7 @@
       if (!SYNCB) { SYNCB = true; var f = function () { if (AUTH && !document.hidden && Date.now() - LPULL > 30000) pull() }; document.addEventListener("visibilitychange", f); window.addEventListener("focus", f) } pull()
     }
     function syncNow() { stat("Syncing..."); pull().then(function () { push() }) }
-    function signOutLocal(msg) { AUTH = null; TOK = ""; TEXP = 0; clearInterval(POLL); clearTimeout(tmr); asave(); SUBD = false; SUB0 = false; sent = {}; ver = {}; LASTU = 0; stat("Saved on this device only"); render(); if (msg) alertx(msg, "", null) }
+    function signOutLocal(msg) { AUTH = null; TOK = ""; TEXP = 0; clearInterval(POLL); clearTimeout(tmr); asave(); SUBD = false; SUB0 = false; sent = {}; ver = {}; LASTU = 0; stat("Saved on this device only"); acNav(); render(); if (msg) alertx(msg, "", null) }
     function acMsg(t) { var e = document.getElementById("acmsg"); if (e) e.textContent = t }
     function acErr(e) {
       var c = e && e.code || ""; if (!c) return "Could not reach the server. Check your connection or VPN.";
@@ -5327,7 +5338,7 @@
       return "Something went wrong (" + c.slice(0, 40) + ")."
     }
     function acGo(isNew) {
-      var em = val("acm").toLowerCase(), pe = document.getElementById("acp"), pw = pe ? pe.value : "";
+      var em = val("acm").toLowerCase(), pe = document.getElementById("acp"), pw = pe ? pe.value : "", nm = isNew ? val("acn").replace(/\s+/g, " ").trim().slice(0, 40) : "";
       if (AGB) return;
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { agErr("Enter a valid email."); return }
       if (pw.length < (isNew ? 8 : 6)) { agErr(isNew ? "Use at least 8 characters." : "Enter your password."); return }
@@ -5336,7 +5347,7 @@
         var ow = null; try { ow = localStorage.getItem(OKEY) } catch (e) { }
         if (ow && ow !== j.localId) { if (!confirm("This device holds data from a different account.\n\nSigning in will replace it with this account's data. Continue?")) { agFree(isNew); acMsg("Cancelled."); return } S = fix(null); lsave() }
         try { localStorage.setItem(OKEY, j.localId) } catch (e) { }
-        setAuth(j, em); SUBD = false; SUB0 = false; sent = {}; ver = {}; LASTU = 0; stat("Connecting..."); startSync(); AGB = false; agMark(); agClose(); render()
+        setAuth(j, em, nm); if (isNew && nm) idt("accounts:update", { idToken: j.idToken, displayName: nm }).then(function () { }, function () { }); SUBD = false; SUB0 = false; sent = {}; ver = {}; LASTU = 0; stat("Connecting..."); startSync(); AGB = false; agMark(); agClose(); render()
       }, function (e) { agFree(isNew); agErr(acErr(e)) })
     }
     function acReset() {
@@ -5344,11 +5355,17 @@
       idt("accounts:sendOobCode", { requestType: "PASSWORD_RESET", email: em }).then(function () { acMsg("If this email has an account, a reset link was sent.") }, function (e) { acMsg(/EMAIL_NOT_FOUND/.test(e && e.code || "") ? "If this email has an account, a reset link was sent." : acErr(e)) })
     }
     function acUI() {
-      var h = '<div class="pad"><span id="syncs">' + esc(SYNC) + '</span>' + (AUTH ? '<small style="display:block;margin-top:4px">' + esc(AUTH.em) + '</small>' : '') + '</div>';
-      if (AUTH) h += '<div class="add"><button class="btn alt" data-a="acsync">Sync now</button><button class="btn alt" data-a="acout">Sign out</button></div>';
-      else h += '<div class="add"><button class="btn" data-a="agin">Sign in</button><button class="btn alt" data-a="agup">Create account</button></div><p class="note" style="padding:0 14px">Your data stays on this device unless you sign in. The app owner can technically see synced data.</p>';
+      var h = '<div class="pad"><span id="syncs">' + esc(SYNC) + '</span></div>';
+      if (AUTH) h += '<div class="add"><button class="btn alt" data-a="acsync">Sync now</button></div>';
       return h + '<div class="add"><button class="btn alt" data-a="bk">Download backup</button><label class="btn alt">Restore<input type="file" id="rs" accept=".json" hidden></label></div>'
     }
+    function acName() { if (!AUTH) return ""; if (AUTH.dn) return AUTH.dn; var l = String(AUTH.em || "").split("@")[0]; return l ? l.charAt(0).toUpperCase() + l.slice(1) : "Account" }
+    function acNav() {
+      var e = document.getElementById("pgacc"); if (!e) return;
+      if (AUTH) { var n = acName(); e.innerHTML = '<div class="pga"><span class="pga-av" aria-hidden="true">' + esc(n.charAt(0).toUpperCase()) + '</span><span class="pga-n"><b>' + esc(n) + '</b><small>' + esc(AUTH.em) + '</small></span><button class="pga-b" data-a="acout">Sign out</button></div>' }
+      else e.innerHTML = '<div class="pga"><span class="pga-n"><b>Not signed in</b><small>Saved on this device only</small></span><button class="pga-b go" data-a="agin">Sign in</button></div>'
+    }
+    function pgClose() { var o = document.getElementById("pgo"); if (o) o.classList.remove("open") }
     /* ---------- sign in and create account pages ---------- */
     var GK = "tracker-gate", AGM = "in", AGB = false;
     function agSeen() { try { return !!localStorage.getItem(GK) } catch (e) { return true } }
@@ -5359,7 +5376,7 @@
       agEl().innerHTML = '<div class="agx-in"><p class="agx-l"><i></i>Life Tracker</p>' +
         '<h1 class="agx-t" id="agx-t" tabindex="-1" autofocus>' + (up ? "Create your account" : "Welcome back") + '</h1>' +
         '<p class="agx-s">' + (up ? "One account keeps every device in step." : "Sign in to sync your days across devices.") + '</p>' +
-        '<form class="agx-f" id="agf" novalidate>' +
+        '<form class="agx-f" id="agf" novalidate>' + (up ? '<div><label for="acn">Name</label><input id="acn" type="text" autocomplete="name" autocapitalize="words" maxlength="40" placeholder="What should we call you?"></div>' : '') +
         '<div><label for="acm">Email</label><input id="acm" type="email" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="120" placeholder="you@example.com" value="' + esc(em || "") + '"></div>' +
         '<div><label for="acp">Password</label><div class="agx-w"><input id="acp" type="password" autocomplete="' + (up ? "new-password" : "current-password") + '" maxlength="100" placeholder="' + (up ? "8 characters or more" : "Your password") + '"><button type="button" class="agx-sh" data-a="agpw" aria-pressed="false">Show</button></div></div>' +
         '<p class="agx-m" id="acmsg" role="status" aria-live="polite"></p>' +
@@ -6295,8 +6312,8 @@
       ca: function (i) { CERR = ""; connAdd(i).then(function (u) { LINK[i] = u; if (!u) CERR = "No sign-in link came back. Try again."; render() }).catch(function (er) { CERR = cerr(er); render() }); return false },
       cc: function (i) { checkConn(i); return false }, rf: function () { refreshExt(); return false }, tsnd: function () { testSound(); return false },
       bk: function () { dl("tracker-backup.json", JSON.stringify(S)); return false },
-      acin: function () { acGo(false); return false }, acup: function () { acGo(true); return false }, acrs: function () { acReset(); return false }, acout: function () { signOutLocal(""); return false }, acsync: function () { syncNow(); return false },
-      agin: function () { agOpen("in"); return false }, agup: function () { agOpen("up"); return false }, agsw: function (i) { agOpen(i, true); return false }, agskip: function () { agSkip(); return false }, agpw: function () { agPw(); return false },
+      acin: function () { acGo(false); return false }, acup: function () { acGo(true); return false }, acrs: function () { acReset(); return false }, acout: function () { pgClose(); signOutLocal(""); return false }, acsync: function () { syncNow(); return false },
+      agin: function () { pgClose(); agOpen("in"); return false }, agup: function () { pgClose(); agOpen("up"); return false }, agsw: function (i) { agOpen(i, true); return false }, agskip: function () { agSkip(); return false }, agpw: function () { agPw(); return false },
       reset: function () { if (armed) { S = fix({}); armed = false; save() } else armed = true }
     };
     document.addEventListener("click", function (e) {
@@ -6338,7 +6355,7 @@
     setInterval(tick, 30000); setInterval(ntick, 15000); document.addEventListener("visibilitychange", tick); window.addEventListener("focus", tick);
     document.addEventListener("submit", function (e) { if (e.target && e.target.id === "agf") { e.preventDefault(); acGo(AGM === "up") } });
     goto(location.hash); window.addEventListener("hashchange", function () { if (goto(location.hash)) { armed = false; render() } });
-    render(); initDb().then(refreshExt); agBoot(); setTimeout(ntick, 1500);
+    AUTH = aload(); render(); initDb().then(refreshExt); agBoot(); acNav(); setTimeout(ntick, 1500);
   </script>
 </body>
 
