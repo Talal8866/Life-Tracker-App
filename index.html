@@ -4909,6 +4909,40 @@
     .pgr-b button {
       min-width: 38px
     }
+
+    /* sign in and create account pages */
+    .agx{position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;padding:max(24px,env(safe-area-inset-top,0px)) 22px max(24px,env(safe-area-inset-bottom,0px));border:0;overflow-y:auto;overscroll-behavior:contain;color:#fff;background:linear-gradient(150deg,var(--basalt) 0%,var(--acct) 165%);animation:agxin .4s ease both}
+    .agx:not([open]){display:none}
+    .agx::backdrop{background:var(--basalt);overflow:hidden;overscroll-behavior:contain}
+    .agx::before{content:"";position:fixed;left:-90px;bottom:-110px;width:380px;height:380px;background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100' fill='none' stroke='white' stroke-width='1.3'%3E%3Crect x='16' y='16' width='68' height='68'/%3E%3Crect x='16' y='16' width='68' height='68' transform='rotate(45 50 50)'/%3E%3Ccircle cx='50' cy='50' r='19'/%3E%3C/svg%3E") center/contain no-repeat;opacity:.06;pointer-events:none}
+    .agx::after{content:"";position:fixed;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,transparent,#E6BE62,transparent);opacity:.85;pointer-events:none}
+    .agx.out{opacity:0;transition:opacity .22s}
+    .agx-in{position:relative;z-index:1;width:min(100%,380px);min-height:100%;margin:0 auto;display:flex;flex-direction:column;justify-content:center}
+    .agx-l{display:inline-flex;align-items:center;gap:8px;align-self:flex-start;margin:0;color:#E6BE62;font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+    .agx-l i{width:8px;height:8px;border-radius:50%;background:#E6BE62;display:block}
+    .agx-t{margin:14px 0 0;font:500 32px/1.12 "Reem Kufi",system-ui,sans-serif;letter-spacing:-.01em;color:#fff;outline:0}
+    .agx-s{margin:8px 0 0;color:rgba(255,255,255,.75);font-size:15px}
+    .agx-f{margin:26px 0 0;display:flex;flex-direction:column;gap:14px}
+    .agx-f label{display:block;margin:0 0 6px 2px;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.62)}
+    .agx-f input{width:100%;height:52px;padding:0 16px;border-radius:14px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);color:#fff;font:inherit;font-size:16px;outline:0;transition:border-color .2s,background .2s}
+    .agx-f input::placeholder{color:rgba(255,255,255,.4)}
+    .agx-f input:focus{border-color:#E6BE62;background:rgba(255,255,255,.12)}
+    .agx-w{position:relative}
+    .agx-w input{padding-right:72px}
+    .agx-sh{position:absolute;right:6px;top:6px;height:40px;padding:0 12px;border:0;border-radius:10px;background:transparent;color:rgba(255,255,255,.72);font:inherit;font-size:13px;font-weight:600;cursor:pointer}
+    .agx-go{margin-top:2px;min-height:52px;border:0;border-radius:14px;background:#fff;color:var(--basalt);font:inherit;font-size:16px;font-weight:700;cursor:pointer;transition:transform .15s,opacity .2s}
+    .agx-go:active{transform:scale(.98)}
+    .agx-go[disabled]{opacity:.6;cursor:default}
+    .agx-m{min-height:20px;margin:0;font-size:13px;line-height:1.4;color:#F3C9A8}
+    .agx-r{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+    .agx-k{min-height:44px;padding:0 4px;border:0;background:none;color:rgba(255,255,255,.78);font:inherit;font-size:14px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;text-decoration-color:rgba(255,255,255,.28)}
+    .agx-k b{color:#E6BE62;font-weight:700}
+    .agx-x{align-self:center;margin-top:6px}
+    .agx-n{margin:14px 0 0;text-align:center;font-size:12px;line-height:1.5;color:rgba(255,255,255,.5)}
+    .agx.sh .agx-in{animation:agxsh .36s}
+    @keyframes agxin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+    @keyframes agxsh{20%{transform:translateX(-7px)}45%{transform:translateX(6px)}70%{transform:translateX(-3px)}}
+    @media (prefers-reduced-motion:reduce){.agx,.agx.sh .agx-in{animation:none}.agx.out{transition:none}}
   </style>
 </head>
 
@@ -4920,6 +4954,7 @@
     <div id="view"></div>
     <button class="ghost" id="reset" data-a="reset" hidden>Erase all data</button>
   </main>
+  <dialog class="agx" id="agx" closedby="none" aria-labelledby="agx-t"></dialog>
   <div id="toasts" aria-live="polite"></div>
   <nav class="dk" id="dk" aria-label="Pages"><button class="dk-hub" data-a="pgopen" aria-haspopup="dialog"
       aria-label="Open menu"><svg viewBox="0 0 24 24" aria-hidden="true">
@@ -5293,15 +5328,16 @@
     }
     function acGo(isNew) {
       var em = val("acm").toLowerCase(), pe = document.getElementById("acp"), pw = pe ? pe.value : "";
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { acMsg("Enter a valid email."); return }
-      if (pw.length < (isNew ? 8 : 6)) { acMsg(isNew ? "Use at least 8 characters." : "Enter your password."); return }
-      acMsg("Working...");
+      if (AGB) return;
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { agErr("Enter a valid email."); return }
+      if (pw.length < (isNew ? 8 : 6)) { agErr(isNew ? "Use at least 8 characters." : "Enter your password."); return }
+      AGB = true; var bt = document.getElementById("agg"); if (bt) { bt.disabled = true; bt.textContent = isNew ? "Creating\u2026" : "Signing in\u2026" } acMsg("");
       idt(isNew ? "accounts:signUp" : "accounts:signInWithPassword", { email: em, password: pw, returnSecureToken: true }).then(function (j) {
         var ow = null; try { ow = localStorage.getItem(OKEY) } catch (e) { }
-        if (ow && ow !== j.localId) { if (!confirm("This device holds data from a different account.\n\nSigning in will replace it with this account's data. Continue?")) { acMsg("Cancelled."); return } S = fix(null); lsave() }
+        if (ow && ow !== j.localId) { if (!confirm("This device holds data from a different account.\n\nSigning in will replace it with this account's data. Continue?")) { agFree(isNew); acMsg("Cancelled."); return } S = fix(null); lsave() }
         try { localStorage.setItem(OKEY, j.localId) } catch (e) { }
-        setAuth(j, em); SUBD = false; SUB0 = false; sent = {}; ver = {}; LASTU = 0; stat("Connecting..."); startSync(); render()
-      }, function (e) { acMsg(acErr(e)) })
+        setAuth(j, em); SUBD = false; SUB0 = false; sent = {}; ver = {}; LASTU = 0; stat("Connecting..."); startSync(); AGB = false; agMark(); agClose(); render()
+      }, function (e) { agFree(isNew); agErr(acErr(e)) })
     }
     function acReset() {
       var em = val("acm").toLowerCase(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) { acMsg("Type your email above first."); return }
@@ -5310,9 +5346,45 @@
     function acUI() {
       var h = '<div class="pad"><span id="syncs">' + esc(SYNC) + '</span>' + (AUTH ? '<small style="display:block;margin-top:4px">' + esc(AUTH.em) + '</small>' : '') + '</div>';
       if (AUTH) h += '<div class="add"><button class="btn alt" data-a="acsync">Sync now</button><button class="btn alt" data-a="acout">Sign out</button></div>';
-      else h += '<div class="add"><input class="sin" type="email" id="acm" placeholder="Email" autocomplete="username" aria-label="Email" maxlength="120"></div><div class="add"><input class="sin" type="password" id="acp" placeholder="Password" autocomplete="current-password" aria-label="Password" maxlength="100"></div><div class="add"><button class="btn" data-a="acin">Sign in</button><button class="btn alt" data-a="acup">Create account</button><button class="btn alt" data-a="acrs">Reset password</button></div><p class="note" id="acmsg" style="padding:0 14px">Your data stays on this device unless you sign in. The app owner can technically see synced data.</p>';
+      else h += '<div class="add"><button class="btn" data-a="agin">Sign in</button><button class="btn alt" data-a="agup">Create account</button></div><p class="note" style="padding:0 14px">Your data stays on this device unless you sign in. The app owner can technically see synced data.</p>';
       return h + '<div class="add"><button class="btn alt" data-a="bk">Download backup</button><label class="btn alt">Restore<input type="file" id="rs" accept=".json" hidden></label></div>'
     }
+    /* ---------- sign in and create account pages ---------- */
+    var GK = "tracker-gate", AGM = "in", AGB = false;
+    function agSeen() { try { return !!localStorage.getItem(GK) } catch (e) { return true } }
+    function agMark() { try { localStorage.setItem(GK, "1") } catch (e) { } }
+    function agEl() { return document.getElementById("agx") }
+    function agPaint(m, em) {
+      var up = m === "up";
+      agEl().innerHTML = '<div class="agx-in"><p class="agx-l"><i></i>Life Tracker</p>' +
+        '<h1 class="agx-t" id="agx-t" tabindex="-1" autofocus>' + (up ? "Create your account" : "Welcome back") + '</h1>' +
+        '<p class="agx-s">' + (up ? "One account keeps every device in step." : "Sign in to sync your days across devices.") + '</p>' +
+        '<form class="agx-f" id="agf" novalidate>' +
+        '<div><label for="acm">Email</label><input id="acm" type="email" inputmode="email" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="120" placeholder="you@example.com" value="' + esc(em || "") + '"></div>' +
+        '<div><label for="acp">Password</label><div class="agx-w"><input id="acp" type="password" autocomplete="' + (up ? "new-password" : "current-password") + '" maxlength="100" placeholder="' + (up ? "8 characters or more" : "Your password") + '"><button type="button" class="agx-sh" data-a="agpw" aria-pressed="false">Show</button></div></div>' +
+        '<p class="agx-m" id="acmsg" role="status" aria-live="polite"></p>' +
+        '<button type="submit" class="agx-go" id="agg">' + (up ? "Create account" : "Sign in") + '</button>' +
+        '<div class="agx-r">' + (up ? '<button type="button" class="agx-k" data-a="agsw" data-i="in">Have an account? <b>Sign in</b></button>' : '<button type="button" class="agx-k" data-a="acrs">Forgot password?</button><button type="button" class="agx-k" data-a="agsw" data-i="up">New here? <b>Create account</b></button>') + '</div>' +
+        '</form><button type="button" class="agx-k agx-x" data-a="agskip">Not now</button>' +
+        (up ? '<p class="agx-n">Synced data is stored on Firebase and can be read by the app owner.</p>' : '') + '</div>'
+    }
+    function agOpen(m, keep) {
+      var g = agEl(), em = keep ? val("acm") : ""; AGM = m; AGB = false; agPaint(m, em);
+      g.classList.remove("out", "sh"); if (!g.open) g.showModal()
+    }
+    function agClose() {
+      var g = agEl(); if (!g.open) return; g.classList.add("out");
+      setTimeout(function () { if (g.classList.contains("out")) { g.close(); g.classList.remove("out") } }, 230)
+    }
+    function agSkip() { agMark(); agClose() }
+    function agErr(t) { acMsg(t); var g = agEl(); g.classList.remove("sh"); void g.offsetWidth; g.classList.add("sh") }
+    function agFree(isNew) { AGB = false; var bt = document.getElementById("agg"); if (bt) { bt.disabled = false; bt.textContent = isNew ? "Create account" : "Sign in" } }
+    function agPw() {
+      var p = document.getElementById("acp"), b = document.querySelector(".agx-sh"); if (!p) return;
+      var sh = p.type === "password"; p.type = sh ? "text" : "password";
+      if (b) { b.textContent = sh ? "Hide" : "Show"; b.setAttribute("aria-pressed", sh ? "true" : "false") }
+    }
+    function agBoot() { if (!AUTH && !agSeen()) agOpen("in") }
     function initDb() { AUTH = aload(); afterLoad(); if (!AUTH) { stat("Saved on this device only"); return Promise.resolve() } stat("Connecting..."); startSync(); return Promise.resolve() }
 
     /* ---------- prayer times for Homs, schedule ---------- */
@@ -6224,6 +6296,7 @@
       cc: function (i) { checkConn(i); return false }, rf: function () { refreshExt(); return false }, tsnd: function () { testSound(); return false },
       bk: function () { dl("tracker-backup.json", JSON.stringify(S)); return false },
       acin: function () { acGo(false); return false }, acup: function () { acGo(true); return false }, acrs: function () { acReset(); return false }, acout: function () { signOutLocal(""); return false }, acsync: function () { syncNow(); return false },
+      agin: function () { agOpen("in"); return false }, agup: function () { agOpen("up"); return false }, agsw: function (i) { agOpen(i, true); return false }, agskip: function () { agSkip(); return false }, agpw: function () { agPw(); return false },
       reset: function () { if (armed) { S = fix({}); armed = false; save() } else armed = true }
     };
     document.addEventListener("click", function (e) {
@@ -6263,8 +6336,9 @@
       if (t.on && telapsed(t) >= 45 * 6e4 && NZ !== t.t0) { NZ = t.t0; snd("w"); if (S.set.nt.on && S.set.nt.focus) alertx("Stand up", "45 minutes of focus. Stretch your neck and back for 5 minutes.", null, null); var n = document.getElementById("fnz"); if (n) n.textContent = "45 min. Stand up and stretch." }
     }, 1000);
     setInterval(tick, 30000); setInterval(ntick, 15000); document.addEventListener("visibilitychange", tick); window.addEventListener("focus", tick);
+    document.addEventListener("submit", function (e) { if (e.target && e.target.id === "agf") { e.preventDefault(); acGo(AGM === "up") } });
     goto(location.hash); window.addEventListener("hashchange", function () { if (goto(location.hash)) { armed = false; render() } });
-    render(); initDb().then(refreshExt); setTimeout(ntick, 1500);
+    render(); initDb().then(refreshExt); agBoot(); setTimeout(ntick, 1500);
   </script>
 </body>
 
