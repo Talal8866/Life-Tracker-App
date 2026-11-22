@@ -4953,6 +4953,25 @@
     @keyframes agxin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
     @keyframes agxsh{20%{transform:translateX(-7px)}45%{transform:translateX(6px)}70%{transform:translateX(-3px)}}
     @media (prefers-reduced-motion:reduce){.agx,.agx.sh .agx-in{animation:none}.agx.out{transition:none}}
+    /* first-run setup */
+    .setupx{width:min(100% - 28px,520px);max-height:min(90dvh,760px);padding:0;border:1px solid var(--line);border-radius:22px;background:var(--sf);color:var(--ink);box-shadow:0 24px 80px rgba(15,26,48,.3)}
+    .setupx::backdrop{background:rgba(15,26,48,.58);backdrop-filter:blur(3px)}
+    .setup-in{padding:24px;overflow:auto}
+    .setup-k{margin:0;color:var(--acct);font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+    .setup-t{margin:8px 0 0;font:600 27px/1.15 "Reem Kufi",system-ui,sans-serif}
+    .setup-s{margin:8px 0 18px;color:var(--mute)}
+    .setup-core{padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:var(--soft);font-weight:600}
+    .setup-group{margin:14px 0 2px;color:var(--mute);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+    .setup-list{display:grid;gap:8px;margin:12px 0 0}
+    .setup-opt{display:flex;align-items:center;gap:12px;min-height:54px;padding:10px 12px;border:1px solid var(--line);border-radius:13px;background:var(--sf);cursor:pointer}
+    .setup-opt:has(input:checked){border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+    .setup-opt input{width:20px;height:20px;accent-color:var(--acct);flex:none}
+    .setup-opt span{display:block;font-weight:650}
+    .setup-opt small{display:block;color:var(--mute);font-size:12px;font-weight:400}
+    .setup-actions{display:flex;gap:10px;margin-top:18px}
+    .setup-actions .btn{flex:1}
+    .setup-skip{display:block;margin:8px auto 0;min-height:40px;border:0;background:none;color:var(--mute);font:inherit;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+    @media(max-width:420px){.setup-in{padding:20px}.setup-t{font-size:24px}}
   </style>
 </head>
 
@@ -4964,6 +4983,23 @@
     <div id="view"></div>
     <button class="ghost" id="reset" data-a="reset" hidden>Erase all data</button>
   </main>
+  <dialog class="setupx" id="setupx" closedby="none" aria-labelledby="setup-t">
+    <div class="setup-in">
+      <p class="setup-k">Life Tracker · Quick setup</p>
+      <h1 class="setup-t" id="setup-t">What would you like to track?</h1>
+      <p class="setup-s">Start with the essentials. Add or remove any area later in Settings.</p>
+      <div class="setup-core">Daily habits and wellbeing <small style="display:block;color:var(--mute);font-weight:400">Your simple home for routines, focus, and how you feel.</small></div>
+      <div class="setup-list" role="group" aria-label="Optional tracking areas">
+        <label class="setup-opt"><input type="checkbox" data-setup-area="faith"><span>Faith and adhkar<small>Prayer routine and daily adhkar</small></span></label>
+        <label class="setup-opt"><input type="checkbox" data-setup-area="work"><span>Workday<small>Schedule, work time, and tasks</small></span></label>
+        <label class="setup-opt"><input type="checkbox" data-setup-area="learn"><span>Learning<small>Study plan and weekly goals</small></span></label>
+        <label class="setup-opt"><input type="checkbox" data-setup-area="money"><span>Money<small>Income, spending, and savings</small></span></label>
+        <label class="setup-opt"><input type="checkbox" data-setup-area="digital"><span>Screen time<small>Phone and games tracking</small></span></label>
+      </div>
+      <div class="setup-actions"><button class="btn" data-a="setupDone">Get started</button></div>
+      <button class="setup-skip" data-a="setupSkip">Keep only the essentials</button>
+    </div>
+  </dialog>
   <dialog class="agx" id="agx" closedby="none" aria-labelledby="agx-t"></dialog>
   <div id="toasts" aria-live="polite"></div>
   <nav class="dk" id="dk" aria-label="Pages"><button class="dk-hub" data-a="pgopen" aria-haspopup="dialog"
@@ -5039,6 +5075,28 @@
     }
     function load() { var o = null; try { o = JSON.parse(localStorage.getItem(KEY)) } catch (e) { } return fix(o) }
     var S = load(), BL = blank();
+    var FIRST_RUN = !(S.ui && S.ui.setupDone);
+    function areaOn(id) { var a = S.ui && S.ui.areas; return !a || !Object.prototype.hasOwnProperty.call(a, id) ? true : !!a[id] }
+    function sectionOn(id) { var key = id === "screens" ? "digital" : id; if (!areaOn(key)) return false; if (id === "faith" && !S.set.mods.faith) return false; if (id === "screens" && !S.set.mods.digital) return false; return true }
+    function areaPageOn(id) { return id === "learn" ? areaOn("learn") : id === "adhkar" ? areaOn("faith") : id === "money" ? areaOn("money") : id === "archive" || id === "set" || id === "now" || id === "log" || id === "week" || id === "more" || id === "home" }
+    function visiblePages() { return PG.filter(function (p) { return areaPageOn(p[0]) }) }
+    function setArea(id, on) {
+      S.ui = S.ui || {}; S.ui.areas = S.ui.areas || {}; S.ui.areas[id] = !!on;
+      S.set = S.set || {}; S.set.mods = S.set.mods || {};
+      if (id === "faith") { S.set.mods.faith = on ? 1 : 0; if (S.set.nt) S.set.nt.prayer = on ? 1 : 0 }
+      if (id === "digital") S.set.mods.digital = on ? 1 : 0;
+      if (id === "work") { S.set.job = S.set.job || {}; S.set.job.on = on ? 1 : 0 }
+      if (!on && tab === "more" && ((id === "learn" && sub === "learn") || (id === "faith" && sub === "adhkar") || (id === "money" && sub === "money"))) sub = "home";
+    }
+    function finishSetup() {
+      var areas = { morning: true, focus: true, body: false, mind: false, faith: false, work: false, learn: false, money: false, digital: false };
+      document.querySelectorAll("[data-setup-area]").forEach(function (e) { areas[e.dataset.setupArea] = !!e.checked });
+      Object.keys(areas).forEach(function (id) { setArea(id, areas[id]) });
+      S.ui.setupDone = 1; FIRST_RUN = false; agMark();
+      var d = document.getElementById("setupx"); if (d && d.open) d.close();
+      save(); render(); return false;
+    }
+    function setupBoot() { var d = document.getElementById("setupx"); if (FIRST_RUN && d && !d.open) d.showModal() }
     var THEMES = [["zaytun", "Zaytun", "#EDF0E4", "#5E6B2A"], ["rumman", "Rumman", "#F1EAE5", "#9B3A3F"], ["fayrouz", "Fayrouz", "#E8F1EF", "#138A86"], ["lazuward", "Lazuward", "#EBEEF6", "#2F4F9E"]];
     function applyTheme() { var t = S.ui && S.ui.theme; if (!THEMES.some(function (x) { return x[0] === t })) t = "zaytun"; document.documentElement.setAttribute("data-theme", t) }
     applyTheme();
@@ -5091,8 +5149,8 @@
     function items(k) {
       var c = ctx(k), d = c.d, it = [];
       var A = function (l, v, w, id, t, b) { if ((S.hide && S.hide[id]) || !bornOK(id, k)) return; it.push({ l: l, v: Math.max(0, Math.min(1, +v || 0)), w: w, t: t || "e", id: id, bonus: !!b }) };
-      INP.forEach(function (e) { if (e.gen) { e.gen(c, A); return } if (e.on && !e.on(c)) return; A(e.l(c), e.v(c), e.w, e.id, e.t, e.b) });
-      (S.cx || []).forEach(function (x) { if (x.sc) A(x.l, cxF(x, k), 3, "cx" + x.id) });
+      INP.forEach(function (e) { if (e.gen) { if (areaOn("faith")) e.gen(c, A); return } if (e.sec && !sectionOn(e.sec)) return; if (e.on && !e.on(c)) return; A(e.l(c), e.v(c), e.w, e.id, e.t, e.b) });
+      (S.cx || []).forEach(function (x) { if (x.sc && sectionOn(x.sec)) A(x.l, cxF(x, k), 3, "cx" + x.id) });
       return it
     }
     function selfCheck() {
@@ -5401,7 +5459,7 @@
       var sh = p.type === "password"; p.type = sh ? "text" : "password";
       if (b) { b.textContent = sh ? "Hide" : "Show"; b.setAttribute("aria-pressed", sh ? "true" : "false") }
     }
-    function agBoot() { if (!AUTH && !agSeen()) agOpen("in") }
+    function agBoot() { if (!FIRST_RUN && !AUTH && !agSeen()) agOpen("in") }
     function initDb() { AUTH = aload(); afterLoad(); if (!AUTH) { stat("Saved on this device only"); return Promise.resolve() } stat("Connecting..."); startSync(); return Promise.resolve() }
 
     /* ---------- prayer times for Homs, schedule ---------- */
@@ -5740,10 +5798,10 @@
       for (i = 0; i < 5; i++)if (T[i] > n) { ni = i; break }
       h += odBanner();
       h += upBanner();
-      h += workCard(k, n);
+      if (areaOn("work")) h += workCard(k, n);
       var pl = (d.plan || []).map(function (x, j) { return { x: x, i: j, a: mins(x.t) } });
       SG = suggest(k, n); var nd = (S.dis[k] || []).length, ev = [], cur = null, pend = function (j) { return Math.min(j < 4 ? T[j + 1] : T[j] + 120, T[j] + 120) };
-      PN.forEach(function (nm, j) { var tt = 0, dn = 0; SUNN.forEach(function (u) { var c = S.set.sn[u.i]; if (u.p === j && c > 0) { tt += c; if ((d.sn || [])[u.i]) dn += c } }); ev.push({ g: "p", i: j, a: T[j], nm: nm, sn: tt ? "Sunnah " + dn + " of " + tt : "", dn: d.p[j] }) });
+      if (areaOn("faith") && S.set.mods.faith) PN.forEach(function (nm, j) { var tt = 0, dn = 0; SUNN.forEach(function (u) { var c = S.set.sn[u.i]; if (u.p === j && c > 0) { tt += c; if ((d.sn || [])[u.i]) dn += c } }); ev.push({ g: "p", i: j, a: T[j], nm: nm, sn: tt ? "Sunnah " + dn + " of " + tt : "", dn: d.p[j] }) });
       pl.forEach(function (o) { ev.push({ g: "u", i: o.i, a: o.a, x: o.x.x, t: o.x.t, dn: o.x.d, f: o.x.f, lg: o.x.lg }) });
       (S.pins || []).forEach(function (q) { ev.push({ g: "pn", i: q.id, a: mins(q.t), t: q.t, x: q.x, dn: (d.pd || {})[q.id] }) });
       SG.slice(0, 4).forEach(function (g, j) { ev.push({ g: "s", i: j, a: mins(g.t), t: g.t, x: g.x, why: g.why }) });
@@ -5770,7 +5828,7 @@
     var LSEC = "over", LAUTO = true;
     var ICO = { morning: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>', faith: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>', focus: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/>', body: '<path d="M20.8 5.6a5 5 0 0 0-7.1 0L12 7.3l-1.7-1.7a5 5 0 0 0-7.1 7.1L12 21l8.8-8.3a5 5 0 0 0 0-7.1z"/>', mind: '<circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/>', screens: '<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>' };
     var SECN = { work: "Work", morning: "Morning", faith: "Faith", focus: "Focus", body: "Body", mind: "Mind", screens: "Screens" };
-    function secList(k) { var m = S.set.mods, o = ["morning", "faith", "focus", "body", "mind"]; if (k && wkOn(k)) o.splice(1, 0, "work"); if (m.digital) o.push("screens"); return o }
+    function secList(k) { var o = []; ["morning", "faith", "focus", "body", "mind"].forEach(function (id) { if (sectionOn(id)) o.push(id) }); if (k && sectionOn("work") && wkOn(k)) o.splice(1, 0, "work"); if (sectionOn("screens")) o.push("screens"); return o }
     function secProg(k) {
       var c = ctx(k), d = c.d, s = c.s, hid = S.hide || {}, P = { morning: [0, 0], faith: [0, 0], focus: [0, 0], body: [0, 0], mind: [0, 0], screens: [0, 0], work: [0, 0] };
       INP.forEach(function (e) { if (!e.pg || (e.pon && !e.pon(c)) || (e.h && hid[e.id]) || !bornOK(e.id, k)) return; var t = e.pt ? e.pt(c) : 1, q = P[e.sec]; q[0] += Math.max(0, Math.min(t, +e.pg(c) || 0)); q[1] += t });
@@ -6067,6 +6125,11 @@
       h += box("Patterns in your tasks", pt, function (q) { return row(esc(q.x), q.why, '<span class="mut">' + fmt(q.m) + '</span>') });
       return sbox("Suggestion learning", h || '<div class="pad mut">Nothing learned yet. It needs 4 actions on a suggestion.</div>')
     }
+    function areaSettings() {
+      var daily = [["morning", "Morning", "Wake, sleep, and routines"], ["focus", "Focus", "Daily focus target"], ["body", "Body", "Movement and hydration"], ["mind", "Mind", "Mood and reflection"]], optional = [["faith", "Faith and adhkar", "Prayer routine and adhkar"], ["work", "Workday", "Schedule, time, and tasks"], ["learn", "Learning", "Study plan and goals"], ["money", "Money", "Income, spending, and savings"], ["digital", "Screen time", "Phone and games"]];
+      var rows = function (L) { return L.map(function (x) { return row(x[1], x[2], '<input type="checkbox" data-area="' + x[0] + '"' + (areaOn(x[0]) ? ' checked' : '') + ' style="width:28px;height:28px" aria-label="Track ' + x[1] + '">') }).join("") };
+      return '<p class="setup-group">Daily sections</p>' + rows(daily) + '<p class="setup-group">Optional areas</p>' + rows(optional) + '<p class="note">Turning an area off hides it from the daily log and its menu. Saved entries stay on this device.</p>'
+    }
     function vSet() {
       var s = S.set, nt = s.nt, jb = s.job, po = s.po || [0, 0, 0, 0, 0],
       f = function (l, id, v, sub) { return row(l, sub, '<input type="number" class="num" id="' + id + '" value="' + v + '" min="0" aria-label="' + l + '">') },
@@ -6074,7 +6137,8 @@
       sg = function (t, inner, note) { return sbox(t, inner, note) };
       var cur = (S.ui && S.ui.theme) || "zaytun", h = sg("Look", '<div class="thms">' + THEMES.map(function (x) { return '<button class="thm" data-a="theme" data-i="' + x[0] + '" aria-pressed="' + (cur === x[0]) + '"><i style="background:linear-gradient(135deg,' + x[2] + ' 50%,' + x[3] + ' 50%)"></i>' + x[1] + '</button>' }).join("") + '</div>');
       h += sg("Daily targets", tgRows(s, f));
-      h += sg("Features", ck("Faith routine", "mf", s.mods.faith) + ck("Screens and games", "md", s.mods.digital) + ck("Calm sounds", "snd", s.snd !== 0));
+      h += sg("Your areas", areaSettings());
+      h += sg("Features", ck("Calm sounds", "snd", s.snd !== 0) + '<input type="checkbox" id="mf"' + (s.mods.faith ? ' checked' : '') + ' hidden><input type="checkbox" id="md"' + (s.mods.digital ? ' checked' : '') + ' hidden>');
       h += sg("Prayers", '<details class="sx"><summary>Prayer time shifts, min</summary>' + PN.map(function (n, i) { return f(n, "p" + "fdami"[i], po[i]) }).join("") + '</details><details class="sx"><summary>Sunnah counts, 0 hides one</summary>' + ["سنة الفجر قبله", "سنة الظهر قبله", "سنة الظهر بعده", "سنة العصر قبله", "سنة المغرب بعده", "سنة العشاء بعده", "الوتر"].map(function (l, i) { return f(l, "sn" + i, s.sn[i]) }).join("") + '</details>');
       h += sg("Work schedule", ck("Job schedule", "jon", jb.on) + '<div class="row"><span>Work days</span><span class="acts" style="flex-wrap:wrap;justify-content:flex-end">' + DN.map(function (n, i) { return '<label style="display:inline-flex;align-items:center;gap:3px;font-size:13px">' + n + '<input type="checkbox" id="jd' + i + '"' + (jb.days.indexOf(i) >= 0 ? " checked" : "") + '></label>' }).join("") + '</span></div>' + row("Starts", "", '<input type="time" id="jsa" value="' + jb.a + '" aria-label="Work starts">') + row("Ends", "", '<input type="time" id="jsb" value="' + jb.b + '" aria-label="Work ends">') + f("Commute one way, min", "jsc", jb.c) + row("From date", "", '<input type="date" id="jfr" value="' + jb.from + '" aria-label="From date">') + f("Focus on work days, min", "jfo", jb.jf));
       h += sg("Alerts", ck("Alerts on", "nton", nt.on) + ck("Prayer times", "ntp", nt.prayer) + ck("Focus goal reached", "ntf", nt.focus) + ck("Evening close-out", "nte", nt.evening) + row("Remind me before a plan", "", '<select id="ntl" aria-label="Lead time">' + [0, 5, 10, 15].map(function (m) { return '<option value="' + m + '"' + (+nt.lead === m ? " selected" : "") + '>' + (m ? m + " min before" : "At the start") + '</option>' }).join("") + '</select>') + '<div class="add"><button class="btn alt" data-a="nperm">Allow phone notifications</button><button class="btn alt" data-a="ics">Download today’s timeline (.ics)</button></div><p class="note" id="ntst"></p>');
@@ -6145,13 +6209,15 @@
       if (id === "archive") return arcList().length + " timeline · " + wkDoneList().length + " work"
       return "Targets and alerts"
     }
-    function moreHub() { return '<div class="mh">' + MSEC.map(function (s) { return '<button class="mh-t" data-a="sub" data-i="' + s[0] + '"><span class="mh-ic">' + MICO(s[0]) + '</span><span><b>' + s[1] + '</b><small>' + moreStat(s[0]) + '</small></span></button>' }).join("") + '</div>' }
-    function moreBar() { return '<div class="mb"><button class="mb-back" data-a="sub" data-i="home" aria-label="Back to More">‹ More</button><div class="mb-row">' + MSEC.map(function (s) { return '<button class="mb-p" data-a="sub" data-i="' + s[0] + '" aria-pressed="' + (sub === s[0] ? "true" : "false") + '">' + s[1] + '</button>' }).join("") + '</div></div>' }
+    function enabledMore() { return MSEC.filter(function (s) { return s[0] === "set" || s[0] === "archive" || s[0] === "learn" && areaOn("learn") || s[0] === "adhkar" && areaOn("faith") || s[0] === "money" && areaOn("money") }) }
+    function moreHub() { return '<div class="mh">' + enabledMore().map(function (s) { return '<button class="mh-t" data-a="sub" data-i="' + s[0] + '"><span class="mh-ic">' + MICO(s[0]) + '</span><span><b>' + s[1] + '</b><small>' + moreStat(s[0]) + '</small></span></button>' }).join("") + '</div>' }
+    function moreBar() { return '<div class="mb"><button class="mb-back" data-a="sub" data-i="home" aria-label="Back to More">‹ More</button><div class="mb-row">' + enabledMore().map(function (s) { return '<button class="mb-p" data-a="sub" data-i="' + s[0] + '" aria-pressed="' + (sub === s[0] ? "true" : "false") + '">' + s[1] + '</button>' }).join("") + '</div></div>' }
     var HS = [], SUBS = ["learn", "archive", "money", "adhkar", "set"], TABS = ["now", "log", "week", "more"];
     function rk() { return tab + (tab === "more" ? "-" + sub : "") }
     function goto(h) {
       var m = String(h || "").replace(/^#/, "").split("-"), t = m[0] || "now";
-      if (t === "more") { tab = "more"; var sx = ({ work: "archive", conn: "set" })[m[1]] || m[1]; sub = SUBS.indexOf(sx) >= 0 ? sx : "home"; return true }
+      if (!areaPageOn(t)) { tab = "more"; sub = "home"; return true }
+      if (t === "more") { tab = "more"; var sx = ({ work: "archive", conn: "set" })[m[1]] || m[1]; sub = sx === "home" || areaPageOn(sx) && SUBS.indexOf(sx) >= 0 ? sx : "home"; return true }
       if (t === "learn" || t === "archive") { tab = "more"; sub = t; return true }
       if (t === "work") { tab = "more"; sub = "archive"; return true }
       if (t === "week") { tab = "week"; WVIEW = "week"; return true }
@@ -6161,7 +6227,7 @@
     /* ---- page navigation (dock + all-pages sheet) ---- */
     var PG = [["now", "Now"], ["log", "Log"], ["week", "Week"], ["learn", "Learn"], ["archive", "Archive"], ["adhkar", "Adhkar"], ["money", "Money"], ["set", "Settings"]];
     function pgOf() { var p = tab === "more" ? sub : tab; return PG.some(function (x) { return x[0] === p }) ? p : "now" }
-    function pgIdx() { var p = pgOf(), i = 0; PG.forEach(function (x, j) { if (x[0] === p) i = j }); return i }
+    function pgIdx() { var p = pgOf(), i = 0; visiblePages().forEach(function (x, j) { if (x[0] === p) i = j }); return i }
     var PGED = false;
     function applyPGOrder() {
       var o = S.ui && S.ui.pgo; if (!o || !o.length) return; var ids = PG.map(function (x) { return x[0] }), ord = o.filter(function (id) { return ids.indexOf(id) >= 0 }); ids.forEach(function (id) { if (ord.indexOf(id) < 0) ord.push(id) });
@@ -6175,18 +6241,18 @@
       var bt = document.getElementById("pgedt"); if (!bt) { bt = document.createElement("button"); bt.id = "pgedt"; bt.className = "pgt-ed"; bt.setAttribute("data-a", "pgedit"); o.querySelector(".pgs-h").appendChild(bt) }
       bt.textContent = PGED ? "Done" : "Reorder";
       if (!PGED) { ed.innerHTML = ""; return }
-      ed.innerHTML = PG.map(function (x, i) { var t = g2.querySelector('.pgt[data-i="' + x[0] + '"]'), ic = t ? t.querySelector(".pgt-i").innerHTML : ""; return '<div class="pgr"><span class="pgr-i">' + ic + '</span><b>' + x[1] + '</b><span class="pgr-b"><button data-a="pgup" data-i="' + x[0] + '" aria-label="Move ' + x[1] + ' up"' + (i === 0 ? " disabled" : "") + '>↑</button><button data-a="pgdn" data-i="' + x[0] + '" aria-label="Move ' + x[1] + ' down"' + (i === PG.length - 1 ? " disabled" : "") + '>↓</button></span></div>' }).join("")
+      var shown = visiblePages(); ed.innerHTML = shown.map(function (x, i) { var t = g2.querySelector('.pgt[data-i="' + x[0] + '"]'), ic = t ? t.querySelector(".pgt-i").innerHTML : ""; return '<div class="pgr"><span class="pgr-i">' + ic + '</span><b>' + x[1] + '</b><span class="pgr-b"><button data-a="pgup" data-i="' + x[0] + '" aria-label="Move ' + x[1] + ' up"' + (i === 0 ? " disabled" : "") + '>↑</button><button data-a="pgdn" data-i="' + x[0] + '" aria-label="Move ' + x[1] + ' down"' + (i === shown.length - 1 ? " disabled" : "") + '>↓</button></span></div>' }).join("")
     }
     function pgShut() { var o = document.getElementById("pgo"); if (o) o.classList.remove("open"); PGED = false }
-    function pgNav(id) { if (id === pgOf()) { pgShut(); return } pushH(); if (id === "log") LAUTO = true; goto(id); armed = false; pgShut(); window.scrollTo(0, 0); location.hash = id }
+    function pgNav(id) { if (!areaPageOn(id)) return false; if (id === pgOf()) { pgShut(); return } pushH(); if (id === "log") LAUTO = true; goto(id); armed = false; pgShut(); window.scrollTo(0, 0); location.hash = id }
     function pgPaint() {
-      applyPGOrder(); pgEdPaint(); var i = pgIdx(), p = pgOf(), l = document.getElementById("dkl"), k = document.getElementById("dkk"); if (l) l.textContent = PG[i][1]; if (k) k.textContent = (i + 1) + " / " + PG.length;
-      document.querySelectorAll(".pgt").forEach(function (t) { if (t.dataset.i === p) t.setAttribute("aria-current", "page"); else t.removeAttribute("aria-current") })
+      applyPGOrder(); pgEdPaint(); var list = visiblePages(), i = pgIdx(), p = pgOf(), l = document.getElementById("dkl"), k = document.getElementById("dkk"); if (l) l.textContent = (PG.filter(function (x) { return x[0] === p })[0] || [p, "More"])[1]; if (k) k.textContent = (i + 1) + " / " + list.length;
+      document.querySelectorAll(".pgt").forEach(function (t) { var on = areaPageOn(t.dataset.i); t.hidden = !on; if (t.dataset.i === p) t.setAttribute("aria-current", "page"); else t.removeAttribute("aria-current") })
     }
     document.addEventListener("keydown", function (e) { if (e.key === "Escape") pgShut() });
     var PGX = 0, PGY = 0, PGT = false;
     document.addEventListener("touchstart", function (e) { var t = e.target; PGT = !!(t.closest && t.closest("input,textarea,select,button,a,label,.grid24,.lgtabs,.sh,.sh-o,.pgo,.dk")) === false; if (PGT) { PGX = e.touches[0].clientX; PGY = e.touches[0].clientY } }, { passive: true });
-    document.addEventListener("touchend", function (e) { if (!PGT) return; PGT = false; var c = e.changedTouches[0], dx = c.clientX - PGX, dy = c.clientY - PGY; if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.6 && !SH && !document.querySelector(".pgo.open")) pgNav(PG[(pgIdx() + (dx < 0 ? 1 : -1) + PG.length) % PG.length][0]) }, { passive: true });
+    document.addEventListener("touchend", function (e) { if (!PGT) return; PGT = false; var c = e.changedTouches[0], dx = c.clientX - PGX, dy = c.clientY - PGY, v = visiblePages(); if (Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.6 && !SH && !document.querySelector(".pgo.open")) pgNav(v[(pgIdx() + (dx < 0 ? 1 : -1) + v.length) % v.length][0]) }, { passive: true });
     function pushH() { var k = rk(); if (HS[HS.length - 1] !== k) HS.push(k); if (HS.length > 20) HS.shift() }
     var SH = null, SHK = "";
     function shFind() { if (!SH) return null; if (SH.m === "e") { var pl = E(iso(new Date())).plan; return pl[SH.i] ? { arr: pl, i: SH.i } : null } if (SH.m === "p") { var a = S.pins || []; for (var j = 0; j < a.length; j++)if (String(a[j].id) === String(SH.i)) return { arr: a, i: j } } return null }
@@ -6244,7 +6310,8 @@
     function ansRc(ok) { var q = rcNext(); if (!q) return false; var r = S.learn.sr[q[2]] || { b: 0 }, b = ok ? Math.min(5, (r.b || 0) + 1) : 0, du = new Date(); du.setDate(du.getDate() + INT[b]); S.learn.sr[q[2]] = { b: b, due: iso(du) }; RC.skip[q[2]] = 1; RC.show = false; var d = E(iso(new Date())); d.rc = (d.rc || 0) + 1 }
     function dl(name, data) { try { var b = new Blob([data], { type: "application/octet-stream" }), u = URL.createObjectURL(b), a = document.createElement("a"); a.href = u; a.download = name; document.body.appendChild(a); a.click(); setTimeout(function () { document.body.removeChild(a); URL.revokeObjectURL(u) }, 1500) } catch (e) { } }
     var ACT = {
-      fin: function () { var d = E(iso(new Date())); d.fin = d.fin ? 0 : 1 }, pg: function (i) { pgNav(i) }, pgopen: function () { var o = document.getElementById("pgo"); if (o) o.classList.add("open"); return false }, pgup: function (i) { pgMove(i, -1) }, pgdn: function (i) { pgMove(i, 1) }, pgedit: function () { PGED = !PGED; pgEdPaint() }, pgx: function () { pgShut(); return false }, pgstep: function (i) { pgNav(PG[(pgIdx() + (+i) + PG.length) % PG.length][0]) },
+      setupDone: function () { return finishSetup() }, setupSkip: function () { return finishSetup() },
+      fin: function () { var d = E(iso(new Date())); d.fin = d.fin ? 0 : 1 }, pg: function (i) { pgNav(i) }, pgopen: function () { var o = document.getElementById("pgo"); if (o) o.classList.add("open"); return false }, pgup: function (i) { pgMove(i, -1) }, pgdn: function (i) { pgMove(i, 1) }, pgedit: function () { PGED = !PGED; pgEdPaint() }, pgx: function () { pgShut(); return false }, pgstep: function (i) { var v = visiblePages(); pgNav(v[(pgIdx() + (+i) + v.length) % v.length][0]) },
       tab: function (i) { if (i === "log" && tab !== "log") LAUTO = true; if (i !== tab) pushH(); if (i === "more") sub = "home"; tab = i; armed = false; window.scrollTo(0, 0) }, sub: function (i) { if (i !== sub) pushH(); sub = i; armed = false; window.scrollTo(0, 0) }, pedit: function (i) { SH = { m: "p", i: i } }, sgedit: function (i) { var s = SG[+i]; if (!s) return false; SH = { m: "s", i: +i, key: s.key, t: s.t, x: s.x } }, edit: function (i) { SH = { m: "e", i: +i } }, addn: function () { SH = { m: "a" } }, shx: function () { SH = null },
       shsave: function () { var t = val("sht") || "09:00", x = val("shw"); if (!x) return false; var f = shFind(), pe = document.getElementById("shpin"), isP = !!(pe && pe.checked); if (f) { var it = f.arr[f.i]; if (isP === (SH.m === "p")) { it.t = t; it.x = x; delete it.s } else { f.arr.splice(f.i, 1); shAdd(isP, t, x, it.k || it.sk) } } else { var dk = SH && SH.m === "a" ? val("shd") : "", tk = iso(new Date()); if (/^\d{4}-\d{2}-\d{2}$/.test(dk) && dk !== tk) { if (dk < tk) E(dk).plan.push({ t: t, x: x, d: 1 }); else { S.up = S.up || []; S.up.push({ k: dk, t: t, x: x }); S.up.sort(function (a, b) { return a.k + a.t < b.k + b.t ? -1 : a.k + a.t > b.k + b.t ? 1 : 0 }) } } else shAdd(isP, t, x, SH && SH.m === "s" ? SH.key : null) } SH = null },
       shdel: function () { var f = shFind(); if (f) f.arr.splice(f.i, 1); SH = null },
@@ -6319,7 +6386,7 @@
     document.addEventListener("click", function (e) {
       unlock(); var t = e.target.closest("[data-a]"); if (!t) return; var a = t.dataset.a, f = ACT[a]; if (!f) return; var vk = vd(), pre = snapDay(vk), b = pc(vk), ds = t.dataset,
         q = '[data-a="' + a + '"]' + (ds.i !== undefined ? '[data-i="' + ds.i + '"]' : '') + (ds.k ? '[data-k="' + ds.k + '"]' : '');
-      if (f(ds.i, ds.k, t) === false) return; if (a !== "undo") undoPush(vk, pre); save(); render();
+      if (f(ds.i, ds.k, t) === false) return; if (a === "sets") { S.ui = S.ui || {}; S.ui.areas = S.ui.areas || {}; S.ui.areas.faith = !!S.set.mods.faith; S.ui.areas.digital = !!S.set.mods.digital; S.ui.areas.work = !!S.set.job.on } if (a !== "undo") undoPush(vk, pre); save(); render();
       var el = document.querySelector("#view " + q); if (el && el.getAttribute("aria-pressed") === "true") el.classList.add("pop");
       if (SND) { snd(SND); SND = "" }
       var vk2 = vd(); if (vk2 === vk && b < 100 && pc(vk2) === 100) { snd("d"); var tp = document.getElementById("top"); tp.classList.remove("glow"); void tp.offsetWidth; tp.classList.add("glow") }
@@ -6331,6 +6398,7 @@
     };
     document.addEventListener("change", function (e) {
       var t = e.target;
+      if (t.dataset && t.dataset.area) { setArea(t.dataset.area, t.checked); save(); render(); return }
       if (t.id === "rs" && t.files && t.files[0]) {
         t.files[0].text().then(function (x) {
           var o = null; try { o = JSON.parse(x) } catch (er) { }
@@ -6355,7 +6423,7 @@
     setInterval(tick, 30000); setInterval(ntick, 15000); document.addEventListener("visibilitychange", tick); window.addEventListener("focus", tick);
     document.addEventListener("submit", function (e) { if (e.target && e.target.id === "agf") { e.preventDefault(); acGo(AGM === "up") } });
     goto(location.hash); window.addEventListener("hashchange", function () { if (goto(location.hash)) { armed = false; render() } });
-    AUTH = aload(); render(); initDb().then(refreshExt); agBoot(); acNav(); setTimeout(ntick, 1500);
+    AUTH = aload(); render(); setupBoot(); initDb().then(refreshExt); agBoot(); acNav(); setTimeout(ntick, 1500);
   </script>
 </body>
 
