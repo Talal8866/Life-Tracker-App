@@ -23,7 +23,8 @@ The project demonstrates product thinking across a complete user workflow: captu
 
 ## Technology
 
-- Single-page web app built with HTML, CSS, and JavaScript
+- Single-page web app built with HTML, CSS, and native JavaScript ES modules
+- No bundler or runtime package dependencies
 - GitHub Pages for the live static site
 - Firebase Authentication for email/password accounts
 - Cloud Firestore for authenticated cross-device data sync
@@ -43,3 +44,18 @@ The app can be used with data stored locally on the device. When a user signs in
 ## Possible next steps
 
 Potential future improvements include clearer onboarding, more guided reports, and additional accessibility and usability refinements based on user feedback.
+
+## Source layout
+
+- `index.html` contains the page shell and module entry point.
+- `css/app.css` contains the application styles.
+- `js/main.js` starts the app; `js/app.js` coordinates state and connects application modules.
+- `js/core/` holds shared configuration, date/format helpers, app state, app context, and local persistence.
+- `js/domain/` holds the tracker state schema, normalization/migration rules, scoring model, and weekly metrics.
+- `js/actions/` holds delegated click and change handlers, keeping action workflows out of the coordinator.
+- `js/services/` contains Firebase authentication/transport, Firestore sync, and Composio integrations.
+- `js/ui/screens/` contains one renderer module for each major screen; `js/ui/screen-registry.js` connects them to navigation.
+
+## Run locally
+
+Serve the project directory over HTTP, then open the server URL in a browser. For example, from the project directory run `npx serve .` or use another static file server. Native ES modules require HTTP serving and do not load when opening `index.html` directly as a `file://` URL.
