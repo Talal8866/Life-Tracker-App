@@ -15,6 +15,7 @@ import { createLocalPersistence } from "./core/local-persistence.js";
 import { createAppState } from "./core/app-state.js";
 import { createTrackerModel } from "./domain/tracker-model.js";
 import { createTrackerSchema } from "./domain/tracker-schema.js";
+import { createEmptyPlan, createWeek, ensureLearningPlans, flattenPlanWeeks } from "./domain/learning-plans.js";
 import { createFirebaseClient } from "./services/firebase-client.js";
 import { createFirebaseSync } from "./services/firebase-sync.js";
 import { createComposioClient } from "./services/composio-client.js";
@@ -193,7 +194,9 @@ export function startApp() {
     hidn,
     weekRec,
     UNDO = [],
-    GAPS = false;
+    GAPS = false,
+    LPMODE = "",
+    LPWEDIT = "";
   var trackerModel = createTrackerModel({
     getState: function () {
       return appState.state;
@@ -1080,36 +1083,43 @@ export function startApp() {
       "On push: install with cache, lint, test, build, then deploy the artifact.",
     ],
   ];
+  function activeLearningPlan() {
+    var L = appState.state.learn;
+    return (L.plans || []).filter(function (p) { return p.id === L.activePlanId; })[0] || (L.plans || [])[0];
+  }
+  function learningWeeks(plan) {
+    return flattenPlanWeeks(plan || activeLearningPlan());
+  }
+  function currentLearningEntry() {
+    var weeks = learningWeeks();
+    return weeks[Math.max(0, Math.min(weeks.length - 1, appState.state.learn.w))] || null;
+  }
   function phase(w) {
-    return w < 7
-      ? "Foundations"
-      : w < 15
-        ? "Angular 20 core"
-        : w < 19
-          ? "Quality and delivery"
-          : "Backend and system design";
+    return learningWeeks()[w] ? learningWeeks()[w].phase.title : "No phase yet";
   }
   function wdone(j) {
-    var x = appState.state.learn.d[j];
+    var entry = learningWeeks()[j],
+      x = entry && entry.week.done;
     return !!(x && x[0] && x[1] && x[2]);
   }
   function nextTask() {
-    var L = appState.state.learn,
-      c = CUR[L.w],
-      dn = L.d[L.w] || [0, 0, 0],
+    var entry = currentLearningEntry(),
+      dn = entry ? entry.week.done : [1, 1, 1],
       n = ["Learn", "Practice", "Ship"];
-    for (var i = 0; i < 3; i++) if (!dn[i]) return n[i] + ": " + c[i + 1];
+    if (!entry) return "Add a phase and week to start learning.";
+    for (var i = 0; i < 3; i++)
+      if (!dn[i]) return n[i] + ": " + [entry.week.learn, entry.week.practice, entry.week.ship][i];
     return "Week done. Move to the next week.";
   }
   function topics() {
-    var c = CUR[appState.state.learn.w];
-    return ["Learn: " + c[1], "Practice: " + c[2], "Ship: " + c[3]];
+    var entry = currentLearningEntry(), c = entry && entry.week;
+    return c ? ["Learn: " + c.learn, "Practice: " + c.practice, "Ship: " + c.ship] : ["Learn", "Practice", "Ship"];
   }
-  function wkMin(w) {
-    var m = 0;
+  function learnMin(w) {
+    var m = 0, plan = activeLearningPlan();
     Object.keys(appState.state.days).forEach(function (k) {
       (appState.state.days[k].fs || []).forEach(function (x) {
-        if (x.w === w) m += x.m || 0;
+        if (x.w === w && plan && (x.lp === plan.id || (!x.lp && plan.id === "advanced-frontend"))) m += x.m || 0;
       });
     });
     return m;
@@ -1117,11 +1127,14 @@ export function startApp() {
   function dueQs() {
     var td = iso(new Date()),
       o = [],
-      L = appState.state.learn;
-    for (var w = 0; w <= L.w; w++)
-      for (var i = 0; i < 2; i++) {
-        var id = w * 2 + i,
-          r = L.sr[id];
+      L = appState.state.learn,
+      plan = activeLearningPlan(),
+      weeks = learningWeeks(plan),
+      recall = plan ? (plan.sr = plan.sr || {}) : {};
+    for (var w = 0; w <= L.w && w < weeks.length; w++)
+      for (var i = 0; i < weeks[w].week.cards.length; i++) {
+        var id = plan.id + ":" + w + ":" + i,
+          r = recall[id];
         if (!r || r.due <= td) o.push([w, i, id]);
       }
     return o;
@@ -2645,7 +2658,7 @@ export function startApp() {
         90,
         job ? mins(j.b) + (+j.c || 0) + 30 : tg + 60,
         len,
-        "جلسة تركيز: " + CUR[appState.state.learn.w][0],
+        "جلسة تركيز: " + ((currentLearningEntry() || {}).week || {}).title,
         nextTask() + " (باقي " + dur(need) + " اليوم)",
       );
       if (need > len)
@@ -2655,7 +2668,7 @@ export function startApp() {
           70,
           T[4] + 20,
           Math.min(90, need - len),
-          "جلسة تركيز تانية: " + CUR[appState.state.learn.w][0],
+          "جلسة تركيز تانية: " + ((currentLearningEntry() || {}).week || {}).title,
           "حتى توصل لهدفك " + dur(F),
         );
     }
@@ -3662,16 +3675,17 @@ export function startApp() {
   }
   var LRT = "week";
   function lrnNav() {
-    var w = appState.state.learn.w;
+    var w = appState.state.learn.w,
+      total = learningWeeks().length;
     return (
       '<div class="pc-nav"><button data-a="lmv" data-i="-1" aria-label="Earlier week"' +
       (w <= 0 ? " disabled" : "") +
       '>‹</button><div class="pc-lab"><span>Week ' +
-      (w + 1) +
-      " of 24</span><small>" +
+      (total ? w + 1 : 0) +
+      " of " + total + "</span><small>" +
       esc(phase(w)) +
       '</small></div><button data-a="lmv" data-i="1" aria-label="Later week"' +
-      (w >= 23 ? " disabled" : "") +
+      (w >= total - 1 ? " disabled" : "") +
       ">›</button></div>"
     );
   }
@@ -4644,9 +4658,10 @@ export function startApp() {
     if (id === "money") return moneyLeft();
     if (id === "learn") {
       var LN = 0,
-        j2;
-      for (j2 = 0; j2 < 24; j2++) if (wdone(j2)) LN++;
-      return LN + " of 24 done";
+        j2,
+        total = learningWeeks().length;
+      for (j2 = 0; j2 < total; j2++) if (wdone(j2)) LN++;
+      return LN + " of " + total + " weeks done";
     }
     if (id === "archive")
       return arcList().length + " timeline · " + wkDoneList().length + " work";
@@ -5082,6 +5097,14 @@ export function startApp() {
         CUR = value;
       },
     },
+    currentPlan: { get: () => activeLearningPlan },
+    planWeeks: { get: () => learningWeeks },
+    currentWeek: { get: () => currentLearningEntry },
+    recallCard: { get: () => function (q) { var e = learningWeeks()[q[0]]; return e && e.week.cards[q[1]]; } },
+    LPMODE: { get: () => LPMODE, set: (value) => { LPMODE = value; } },
+    LPWEDIT: { get: () => LPWEDIT, set: (value) => { LPWEDIT = value; } },
+    createEmptyPlan: { get: () => createEmptyPlan },
+    createWeek: { get: () => createWeek },
     D: { get: () => D },
     DN: { get: () => DN },
     GAPS: {
@@ -5283,6 +5306,7 @@ export function startApp() {
     weekRec: { get: () => weekRec },
     wkDoneList: { get: () => wkDoneList },
     wkMin: { get: () => wkMin },
+    learnMin: { get: () => learnMin },
     wkNav: { get: () => wkNav },
     wkOn: { get: () => wkOn },
     wkR: { get: () => wkR },
@@ -5307,6 +5331,9 @@ export function startApp() {
     more: vMore,
   });
   function render() {
+    var needsPlanMigration = !Array.isArray(appState.state.learn.plans);
+    ensureLearningPlans(appState.state.learn, CUR, RES);
+    if (needsPlanMigration) save();
     sheetR();
     hdr();
     var v = document.getElementById("view"),
@@ -5552,11 +5579,13 @@ export function startApp() {
   function ansRc(ok) {
     var q = rcNext();
     if (!q) return false;
-    var r = appState.state.learn.sr[q[2]] || { b: 0 },
+    var plan = activeLearningPlan(),
+      recall = (plan.sr = plan.sr || {}),
+      r = recall[q[2]] || { b: 0 },
       b = ok ? Math.min(5, (r.b || 0) + 1) : 0,
       du = new Date();
     du.setDate(du.getDate() + INT[b]);
-    appState.state.learn.sr[q[2]] = { b: b, due: iso(du) };
+    recall[q[2]] = { b: b, due: iso(du) };
     RC.skip[q[2]] = 1;
     RC.show = false;
     var d = E(iso(new Date()));
@@ -5622,6 +5651,14 @@ export function startApp() {
       },
     },
     DS: { get: () => DS },
+    currentPlan: { get: () => activeLearningPlan },
+    planWeeks: { get: () => learningWeeks },
+    currentWeek: { get: () => currentLearningEntry },
+    recallCard: { get: () => function (q) { var e = learningWeeks()[q[0]]; return e && e.week.cards[q[1]]; } },
+    LPMODE: { get: () => LPMODE, set: (value) => { LPMODE = value; } },
+    LPWEDIT: { get: () => LPWEDIT, set: (value) => { LPWEDIT = value; } },
+    createEmptyPlan: { get: () => createEmptyPlan },
+    createWeek: { get: () => createWeek },
     E: { get: () => E },
     EDID: {
       get: () => EDID,

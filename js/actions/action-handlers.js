@@ -1,4 +1,19 @@
 export function createActionHandlers(ctx) {
+  function savePlanFields() {
+    var p = ctx.currentPlan(), title = ctx.val("lp-title");
+    if (!p || !title) {
+      ctx.alertx("Enter a plan title", "", null);
+      return false;
+    }
+    p.title = title.slice(0, 80);
+    p.description = ctx.val("lp-description").slice(0, 500);
+    p.level = ctx.val("lp-level").slice(0, 40) || "Beginner";
+    p.dailyMinutes = Math.max(5, Math.min(240, parseInt(ctx.val("lp-minutes"), 10) || 30));
+    p.phases.forEach(function (phase, index) {
+      phase.title = (ctx.val("lp-phase-" + index) || phase.title || "Phase " + (index + 1)).slice(0, 80);
+    });
+    return true;
+  }
   return {
     setupDone: function () {
       return ctx.finishSetup();
@@ -322,6 +337,7 @@ export function createActionHandlers(ctx) {
             m: m,
             x: t.x || "Focus",
             w: ctx.S.learn.w,
+            lp: ctx.S.learn.activePlanId,
           });
         ctx.SND = "w";
       }
@@ -341,6 +357,7 @@ export function createActionHandlers(ctx) {
           m: Math.round(m),
           x: ctx.val("fsx") || "Focus",
           w: ctx.S.learn.w,
+          lp: ctx.S.learn.activePlanId,
         });
     },
     gstart: function () {
@@ -597,6 +614,7 @@ export function createActionHandlers(ctx) {
           m: +i,
           x: ctx.val("fsx") || "Focus",
           w: ctx.S.learn.w,
+          lp: ctx.S.learn.activePlanId,
         });
       ctx.SND = "w";
     },
@@ -716,19 +734,112 @@ export function createActionHandlers(ctx) {
       ctx.S.tasks.push({ x: tx, d: 0 });
     },
     lt: function (i) {
-      var L = ctx.S.learn;
-      L.d[L.w] = L.d[L.w] || [0, 0, 0];
-      L.d[L.w][+i] = L.d[L.w][+i] ? 0 : 1;
+      var entry = ctx.planWeeks()[ctx.S.learn.w];
+      if (!entry) return false;
+      entry.week.done[+i] = entry.week.done[+i] ? 0 : 1;
     },
     lw: function (i) {
-      ctx.S.learn.w = +i;
+      ctx.S.learn.w = Math.max(0, Math.min(ctx.planWeeks().length - 1, +i));
+      var plan = ctx.currentPlan();
+      if (plan) plan.currentWeek = ctx.S.learn.w;
       ctx.RC.show = false;
+    },
+    lpselect: function (i) {
+      if (!ctx.S.learn.plans.some(function (p) { return p.id === i; })) return false;
+      ctx.S.learn.activePlanId = i;
+      var plan = ctx.currentPlan();
+      ctx.S.learn.w = plan ? plan.currentWeek || 0 : 0;
+      ctx.RC.show = false;
+      ctx.LPMODE = "";
+      ctx.LPWEDIT = "";
+    },
+    lpnew: function () {
+      var p = ctx.createEmptyPlan("New learning plan");
+      ctx.S.learn.plans.push(p);
+      ctx.S.learn.activePlanId = p.id;
+      ctx.S.learn.w = 0;
+      ctx.LPMODE = "plan";
+      ctx.LPWEDIT = "";
+    },
+    lpedit: function () { ctx.LPMODE = ctx.LPMODE === "plan" ? "" : "plan"; },
+    lpcancel: function () { ctx.LPMODE = ""; ctx.LPWEDIT = ""; },
+    lpsave: function () {
+      return savePlanFields();
+    },
+    lpaddphase: function () {
+      var p = ctx.currentPlan();
+      if (!p || !savePlanFields()) return false;
+      p.phases.push({ title: "New phase", weeks: [] });
+      ctx.LPMODE = "plan";
+    },
+    lpphasedel: function (i) {
+      var p = ctx.currentPlan(), phase = p && p.phases[+i];
+      if (!phase || !window.confirm("Delete this phase and its weeks?")) return false;
+      var firstWeek = p.phases.slice(0, +i).reduce(function (n, item) { return n + item.weeks.length; }, 0),
+        removed = phase.weeks.length;
+      p.phases.splice(+i, 1);
+      ctx.LPWEDIT = "";
+      if (ctx.S.learn.w >= firstWeek) ctx.S.learn.w = Math.max(firstWeek, ctx.S.learn.w - removed);
+      ctx.S.learn.w = Math.min(ctx.S.learn.w, Math.max(0, ctx.planWeeks().length - 1));
+      p.currentWeek = ctx.S.learn.w;
+    },
+    lpaddweek: function (i) {
+      var p = ctx.currentPlan(), phase = p && p.phases[+i];
+      if (!phase || !savePlanFields()) return false;
+      phase.weeks.push(ctx.createWeek("Week " + (phase.weeks.length + 1)));
+      ctx.S.learn.w = ctx.planWeeks().length - 1;
+      p.currentWeek = ctx.S.learn.w;
+      ctx.LPWEDIT = (+i) + ":" + (phase.weeks.length - 1);
+      ctx.LPMODE = "plan";
+    },
+    lpweekedit: function (i) {
+      var part = String(i).split(":"), p = ctx.currentPlan();
+      if (!p || !p.phases[+part[0]] || !p.phases[+part[0]].weeks[+part[1]]) return false;
+      ctx.S.learn.w = p.phases.slice(0, +part[0]).reduce(function (n, phase) { return n + phase.weeks.length; }, 0) + +part[1];
+      p.currentWeek = ctx.S.learn.w;
+      ctx.LPWEDIT = i;
+      ctx.LPMODE = "plan";
+    },
+    lpweekcancel: function () { ctx.LPWEDIT = ""; },
+    lpweeksave: function (i) {
+      var part = String(i).split(":"), p = ctx.currentPlan(),
+        week = p && p.phases[+part[0]] && p.phases[+part[0]].weeks[+part[1]];
+      if (!week) return false;
+      week.title = (ctx.val("lpw-title") || "New week").slice(0, 100);
+      week.learn = ctx.val("lpw-learn").slice(0, 500);
+      week.practice = ctx.val("lpw-practice").slice(0, 500);
+      week.ship = ctx.val("lpw-ship").slice(0, 500);
+      week.resource = { title: ctx.val("lpw-resource").slice(0, 120), url: ctx.val("lpw-url").slice(0, 500) };
+      ctx.LPWEDIT = "";
+    },
+    lpweekdel: function (i) {
+      var part = String(i).split(":"), p = ctx.currentPlan(),
+        phase = p && p.phases[+part[0]],
+        flatIndex = p ? p.phases.slice(0, +part[0]).reduce(function (n, item) { return n + item.weeks.length; }, 0) + +part[1] : -1;
+      if (!phase || !phase.weeks[+part[1]] || !window.confirm("Delete this week and its progress?")) return false;
+      phase.weeks.splice(+part[1], 1);
+      ctx.LPWEDIT = "";
+      if (flatIndex < ctx.S.learn.w) ctx.S.learn.w--;
+      ctx.S.learn.w = Math.min(ctx.S.learn.w, Math.max(0, ctx.planWeeks().length - 1));
+      p.currentWeek = ctx.S.learn.w;
+      p.currentWeek = ctx.S.learn.w;
+    },
+    lpdelete: function () {
+      var L = ctx.S.learn, p = ctx.currentPlan();
+      if (!p || L.plans.length < 2 || !window.confirm("Delete this learning plan and its progress?")) return false;
+      L.plans = L.plans.filter(function (plan) { return plan.id !== p.id; });
+      L.activePlanId = L.plans[0].id;
+      L.w = 0;
+      ctx.LPMODE = "";
+      ctx.LPWEDIT = "";
     },
     lrtab: function (i) {
       ctx.LRT = i;
     },
     lmv: function (i) {
-      ctx.S.learn.w = Math.max(0, Math.min(23, ctx.S.learn.w + +i));
+      ctx.S.learn.w = Math.max(0, Math.min(ctx.planWeeks().length - 1, ctx.S.learn.w + +i));
+      var plan = ctx.currentPlan();
+      if (plan) plan.currentWeek = ctx.S.learn.w;
     },
     lfocus: function () {
       ctx.TM.x = ctx.topics()[0];
